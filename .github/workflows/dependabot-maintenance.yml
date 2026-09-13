@@ -1,0 +1,14 @@
+name: Dependabot maintenance
+
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  maintain:
+    if: github.actor == 'dependabot[bot]'
+    uses: pomo-studio/.github/.github/workflows/dependabot-maintenance.yml@main
+    secrets:
+      token: ${{ secrets.MAINTENANCE_TOKEN }}

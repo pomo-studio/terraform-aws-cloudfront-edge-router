@@ -1,0 +1,16 @@
+name: README quality
+
+on:
+  pull_request:
+    paths:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readme:
+    uses: pomo-studio/.github/.github/workflows/readme-quality.yml@main
+    with:
+      strict: true

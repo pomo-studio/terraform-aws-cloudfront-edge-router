@@ -1,0 +1,82 @@
+name: Terraform Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.tf'
+      - '**.tfvars'
+      - '**.tftest.hcl'
+      - 'tests/**'
+      - '.tflint.hcl'
+      - '.terraform-docs.yml'
+      - '.github/workflows/terraform.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.tf'
+      - '**.tfvars'
+      - '**.tftest.hcl'
+      - 'tests/**'
+      - '.tflint.hcl'
+      - '.terraform-docs.yml'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate (${{ matrix.directory }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - .
+          - examples/basic
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Format check
+        run: terraform fmt -check -recursive
+      - name: Initialize without a state backend
+        working-directory: ${{ matrix.directory }}
+        run: terraform init -backend=false
+      - name: Validate configuration
+        working-directory: ${{ matrix.directory }}
+        run: terraform validate
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+      - name: Initialize TFLint
+        run: tflint --init
+      - name: Run TFLint
+        run: tflint -f compact --recursive
+
+  docs:
+    name: Docs check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify generated reference is current
+        uses: terraform-docs/gh-actions@v1.4.1
+        with:
+          working-dir: .
+          output-file: README.md
+          output-method: inject
+          fail-on-diff: true
