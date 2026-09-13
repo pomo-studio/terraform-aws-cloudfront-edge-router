@@ -44,7 +44,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
       - name: Format check
         run: terraform fmt -check -recursive
       - name: Initialize without a state backend
