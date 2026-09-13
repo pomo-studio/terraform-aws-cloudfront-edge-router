@@ -87,6 +87,20 @@ run "publishes_both_functions" {
   }
 }
 
+run "syncs_on_parameter_change" {
+  command = apply
+
+  assert {
+    condition     = contains(jsondecode(aws_cloudwatch_event_rule.on_change.event_pattern)["detail"]["name"], "/acceptance/rollout")
+    error_message = "The on-change rule should match the rollout parameter by name."
+  }
+
+  assert {
+    condition     = aws_cloudwatch_event_target.on_change.arn == aws_lambda_function.sync.arn
+    error_message = "The on-change rule should target the sync Lambda."
+  }
+}
+
 run "rejects_a_weight_over_100" {
   command = plan
 

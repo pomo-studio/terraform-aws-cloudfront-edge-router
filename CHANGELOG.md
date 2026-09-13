@@ -13,3 +13,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   CloudFront Function that selects the deployment's VPC origin with
   `selectRequestOriginById` and stamps the deployment header, and a
   viewer-response function that sets the pin cookie.
+- An EventBridge rule that runs the sync as soon as the rollout parameter
+  changes; the schedule remains as a reconciler.
+
+### Fixed
+
+- The rollout parameter's value is ignored after creation, so a promotion made
+  by updating the parameter survives the next `terraform apply`.

@@ -19,6 +19,10 @@ resource "aws_ssm_parameter" "rollout" {
   tags = var.tags
 
   lifecycle {
+    # Terraform seeds the rollout state; promotions then happen by updating
+    # the parameter, and a later apply must not put the seed back.
+    ignore_changes = [value]
+
     precondition {
       condition     = length(local.deployment_list) > 0
       error_message = "At least one deployment is required."
@@ -151,4 +155,32 @@ resource "aws_lambda_permission" "sync" {
   function_name = aws_lambda_function.sync.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.sync.arn
+}
+
+# Sync as soon as the parameter changes; the schedule above is the reconciler.
+resource "aws_cloudwatch_event_rule" "on_change" {
+  name        = "${local.sync_name}-on-change"
+  description = "Sync ${var.name} rollout state when its parameter changes"
+  event_pattern = jsonencode({
+    source      = ["aws.ssm"]
+    detail-type = ["Parameter Store Change"]
+    detail = {
+      name      = [local.parameter_path]
+      operation = ["Create", "Update"]
+    }
+  })
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_event_target" "on_change" {
+  rule = aws_cloudwatch_event_rule.on_change.name
+  arn  = aws_lambda_function.sync.arn
+}
+
+resource "aws_lambda_permission" "on_change" {
+  statement_id  = "AllowEventBridgeInvokeOnChange"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.sync.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.on_change.arn
 }
