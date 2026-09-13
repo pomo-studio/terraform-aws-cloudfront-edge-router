@@ -39,15 +39,16 @@ module "edge_router" {
 | Viewer-request CloudFront Function | 1 |
 | Viewer-response CloudFront Function | 1 |
 | Sync Lambda and its role | 1 |
-| EventBridge schedule | 1 |
+| EventBridge rules (on change, and a reconciling schedule) | 2 |
 
 ## Design decisions
 
 - **CloudFront Functions, not Lambda@Edge.** VPC origins do not support Lambda@Edge origin request or response triggers. Origin selection runs in a CloudFront Function on the JavaScript runtime 2.0, which can select a VPC origin by ID with `selectRequestOriginById`.
 - **Parameter Store is the source of truth.** CloudFront Functions cannot reach the network, so they cannot read Parameter Store. A sync Lambda copies the rollout state into a KeyValueStore, and the function reads it per request.
-- **Rollout state is data, not infrastructure.** Active colour, weight, and pin cookie live in one Parameter Store entry, so promotion is a parameter update rather than a plan.
+- **Why not write the KeyValueStore directly?** It is possible, but the rollout state is three keys, and a promotion changes more than one of them. The sync Lambda writes them in a single `UpdateKeyValueStore` call, so the function never reads a half-applied state; writing keys one at a time from a pipeline would. Parameter Store also gives the state a history, an IAM path, and a change event, none of which the store has on its own.
+- **Rollout state is data, not infrastructure.** Active colour, weight, and pin cookie live in one Parameter Store entry, so promotion is a parameter update rather than a plan. Terraform seeds the value and then ignores it, so a later apply does not put the seed back.
 - **The cache key carries the deployment.** Selecting an origin does not change the cache key, so the function stamps the deployment header and the distribution keys its cache on it. The module returns the header name and the function associations for that wiring.
-- **Near-instant, not atomic.** A weight change propagates with the store; it is not a transactional switch.
+- **Near-instant, not atomic.** A parameter change triggers the sync through EventBridge, and a schedule reconciles in case an event is missed. The store then propagates to the edge on its own clock; the switch is quick but not transactional.
 - **Pin by cookie.** A viewer-response function sets a cookie the viewer-request function reads, so one viewer can stay on a deployment without opening the switch.
 
 ## Examples
