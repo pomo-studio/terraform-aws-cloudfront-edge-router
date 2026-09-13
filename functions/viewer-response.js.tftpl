@@ -1,0 +1,20 @@
+const DEPLOYMENT_HEADER = ${deployment_header_json};
+const PIN_COOKIE = ${pin_cookie_json};
+
+function handler(event) {
+  const response = event.response;
+  const headers = event.request.headers || {};
+  const marked = headers[DEPLOYMENT_HEADER];
+
+  if (marked && marked.value) {
+    const current = (event.request.cookies || {})[PIN_COOKIE];
+    if (!current || current.value !== marked.value) {
+      response.cookies[PIN_COOKIE] = {
+        value: marked.value,
+        attributes: 'Path=/; Secure; SameSite=Lax; Max-Age=86400',
+      };
+    }
+  }
+
+  return response;
+}

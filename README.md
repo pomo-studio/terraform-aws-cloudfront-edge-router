@@ -5,9 +5,7 @@
 
 [Changelog](CHANGELOG.md)
 
-Pick the deployment at the edge. A CloudFront Function reads rollout state from a KeyValueStore on every request and sends the viewer to the active colour, with optional weight and cookie pinning. A sync Lambda keeps the store current from Parameter Store.
-
-> **Status:** work in progress. The interface is being designed against the [Internet Ingress](https://pomo.dev/blueprints) blueprint and should be treated as unstable until the first tagged release.
+Pick the deployment at the edge. A CloudFront Function reads rollout state from a KeyValueStore on every request, selects the deployment's VPC origin, and stamps the choice so the cache stays per-deployment. A sync Lambda keeps the store current from Parameter Store.
 
 ## When to use it
 
@@ -32,12 +30,25 @@ module "edge_router" {
 }
 ```
 
+## What it creates
+
+| Resource | Count |
+|----------|-------|
+| Parameter Store entry (source of truth) | 1 |
+| CloudFront KeyValueStore | 1 |
+| Viewer-request CloudFront Function | 1 |
+| Viewer-response CloudFront Function | 1 |
+| Sync Lambda and its role | 1 |
+| EventBridge schedule | 1 |
+
 ## Design decisions
 
-- **Parameter Store is the source of truth.** CloudFront Functions cannot reach the network, so they cannot read Parameter Store directly. A sync Lambda copies the rollout state into a KeyValueStore, and the function reads it per request.
+- **CloudFront Functions, not Lambda@Edge.** VPC origins do not support Lambda@Edge origin request or response triggers. Origin selection runs in a CloudFront Function on the JavaScript runtime 2.0, which can select a VPC origin by ID with `selectRequestOriginById`.
+- **Parameter Store is the source of truth.** CloudFront Functions cannot reach the network, so they cannot read Parameter Store. A sync Lambda copies the rollout state into a KeyValueStore, and the function reads it per request.
 - **Rollout state is data, not infrastructure.** Active colour, weight, and pin cookie live in one Parameter Store entry, so promotion is a parameter update rather than a plan.
-- **Near-instant, not atomic.** A weight change propagates with the store; it is not a transactional switch. Cache keys must include the colour so promoted responses are not served from the previous deployment's cache.
-- **Pin by cookie.** Sticky testing is a cookie the function recognises, so a single viewer can stay on a non-active colour without opening the switch.
+- **The cache key carries the deployment.** Selecting an origin does not change the cache key, so the function stamps the deployment header and the distribution keys its cache on it. The module returns the header name and the function associations for that wiring.
+- **Near-instant, not atomic.** A weight change propagates with the store; it is not a transactional switch.
+- **Pin by cookie.** A viewer-response function sets a cookie the viewer-request function reads, so one viewer can stay on a deployment without opening the switch.
 
 ## Examples
 
@@ -54,11 +65,15 @@ module "edge_router" {
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0 |
+| <a name="requirement_archive"></a> [archive](#requirement\_archive) | >= 2.4 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.0, < 7.0 |
 
 ## Providers
 
-No providers.
+| Name | Version |
+|------|---------|
+| <a name="provider_archive"></a> [archive](#provider\_archive) | >= 2.4 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.0, < 7.0 |
 
 ## Modules
 
@@ -66,28 +81,47 @@ No modules.
 
 ## Resources
 
-No resources.
+| Name | Type |
+|------|------|
+| [aws_cloudfront_function.viewer_request](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_function) | resource |
+| [aws_cloudfront_function.viewer_response](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_function) | resource |
+| [aws_cloudfront_key_value_store.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_key_value_store) | resource |
+| [aws_cloudwatch_event_rule.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_event_rule) | resource |
+| [aws_cloudwatch_event_target.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_event_target) | resource |
+| [aws_iam_role.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role_policy.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
+| [aws_lambda_function.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function) | resource |
+| [aws_lambda_permission.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
+| [aws_ssm_parameter.rollout](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
+| [archive_file.sync](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/data-sources/file) | data source |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_active_deployment"></a> [active\_deployment](#input\_active\_deployment) | Deployment that receives traffic when weight is zero | `string` | n/a | yes |
-| <a name="input_deployments"></a> [deployments](#input\_deployments) | Deployment names the router chooses between, such as blue and green | `set(string)` | n/a | yes |
+| <a name="input_deployment_header"></a> [deployment\_header](#input\_deployment\_header) | Request header the router stamps with the chosen deployment, so the distribution can key its cache on it. Defaults to x-postmodern-deployment. | `string` | `null` | no |
+| <a name="input_deployments"></a> [deployments](#input\_deployments) | Deployment names the router chooses between. Each must match an origin ID on the distribution it serves. | `set(string)` | n/a | yes |
+| <a name="input_function_runtime"></a> [function\_runtime](#input\_function\_runtime) | CloudFront Functions runtime. Origin selection needs cloudfront-js-2.0. | `string` | `"cloudfront-js-2.0"` | no |
+| <a name="input_lambda_runtime"></a> [lambda\_runtime](#input\_lambda\_runtime) | Runtime for the sync Lambda | `string` | `"python3.12"` | no |
 | <a name="input_name"></a> [name](#input\_name) | Name of the router and its supporting resources | `string` | n/a | yes |
-| <a name="input_parameter_path"></a> [parameter\_path](#input\_parameter\_path) | Parameter Store path holding the rollout state. Defaults to /<name>/routing. | `string` | `null` | no |
-| <a name="input_pin_cookie"></a> [pin\_cookie](#input\_pin\_cookie) | Cookie the function reads to keep a viewer on a specific deployment | `string` | `null` | no |
+| <a name="input_parameter_path"></a> [parameter\_path](#input\_parameter\_path) | Parameter Store path holding the rollout state. Defaults to /<name>/rollout. | `string` | `null` | no |
+| <a name="input_pin_cookie"></a> [pin\_cookie](#input\_pin\_cookie) | Cookie the router sets and reads to keep a viewer on one deployment. Defaults to <name>-deployment. | `string` | `null` | no |
+| <a name="input_sync_schedule"></a> [sync\_schedule](#input\_sync\_schedule) | EventBridge schedule that syncs Parameter Store into the key value store | `string` | `"rate(1 minute)"` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags applied to all resources | `map(string)` | `{}` | no |
-| <a name="input_weight"></a> [weight](#input\_weight) | Percentage of requests sent to the non-active deployment during a canary | `number` | `0` | no |
+| <a name="input_weight"></a> [weight](#input\_weight) | Percentage of requests sent to the other deployment during a canary | `number` | `0` | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| <a name="output_function_arn"></a> [function\_arn](#output\_function\_arn) | ARN of the CloudFront Function that routes requests |
-| <a name="output_key_value_store_arn"></a> [key\_value\_store\_arn](#output\_key\_value\_store\_arn) | ARN of the CloudFront KeyValueStore holding rollout state |
-| <a name="output_parameter_name"></a> [parameter\_name](#output\_parameter\_name) | Name of the Parameter Store entry that is the source of truth |
-| <a name="output_sync_lambda_arn"></a> [sync\_lambda\_arn](#output\_sync\_lambda\_arn) | ARN of the Lambda function that syncs Parameter Store into the KeyValueStore |
+| <a name="output_deployment_header"></a> [deployment\_header](#output\_deployment\_header) | Request header the router stamps, for cloudfront-frontdoor's deployment\_header input |
+| <a name="output_function_associations"></a> [function\_associations](#output\_function\_associations) | Associations to pass to cloudfront-frontdoor's function\_associations input |
+| <a name="output_key_value_store_arn"></a> [key\_value\_store\_arn](#output\_key\_value\_store\_arn) | ARN of the KeyValueStore that holds the rollout state |
+| <a name="output_parameter_name"></a> [parameter\_name](#output\_parameter\_name) | Parameter Store entry that is the source of truth |
+| <a name="output_sync_function_name"></a> [sync\_function\_name](#output\_sync\_function\_name) | Name of the Lambda function that syncs Parameter Store into the KeyValueStore |
+| <a name="output_viewer_request_function_arn"></a> [viewer\_request\_function\_arn](#output\_viewer\_request\_function\_arn) | ARN of the viewer-request function that selects the origin |
+| <a name="output_viewer_response_function_arn"></a> [viewer\_response\_function\_arn](#output\_viewer\_response\_function\_arn) | ARN of the viewer-response function that sets the pin cookie |
 <!-- END_TF_DOCS -->
 
 </details>

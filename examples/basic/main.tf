@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.9.0"
 
   required_providers {
     aws = {
@@ -17,6 +17,7 @@ module "edge_router" {
   deployments       = ["blue", "green"]
   active_deployment = "blue"
   weight            = 0
+  deployment_header = "x-postmodern-deployment"
 
   tags = {
     Environment = "production"

@@ -1,0 +1,63 @@
+import cf from 'cloudfront';
+
+const DEPLOYMENTS = ${deployments_json};
+const DEPLOYMENT_HEADER = ${deployment_header_json};
+const kvsHandle = cf.kvs();
+
+function readState() {
+  const state = { active: DEPLOYMENTS[0], weight: 0, pinCookie: null };
+
+  try {
+    const active = kvsHandle.get('active');
+    if (active) {
+      state.active = active;
+    }
+  } catch (error) {}
+
+  try {
+    const weight = parseInt(kvsHandle.get('weight'), 10);
+    if (Number.isFinite(weight)) {
+      state.weight = weight;
+    }
+  } catch (error) {}
+
+  try {
+    const pin = kvsHandle.get('pin_cookie');
+    if (pin && pin !== 'null') {
+      state.pinCookie = pin;
+    }
+  } catch (error) {}
+
+  return state;
+}
+
+function pickDeployment(request, state) {
+  const cookies = request.cookies || {};
+
+  if (state.pinCookie && cookies[state.pinCookie]) {
+    const pinned = cookies[state.pinCookie].value;
+    if (DEPLOYMENTS.indexOf(pinned) !== -1) {
+      return pinned;
+    }
+  }
+
+  if (state.weight > 0 && DEPLOYMENTS.length > 1) {
+    const others = DEPLOYMENTS.filter((name) => name !== state.active);
+    if (others.length && Math.random() * 100 < state.weight) {
+      return others[0];
+    }
+  }
+
+  return DEPLOYMENTS.indexOf(state.active) !== -1 ? state.active : DEPLOYMENTS[0];
+}
+
+function handler(event) {
+  const state = readState();
+  const deployment = pickDeployment(event.request, state);
+
+  // Switch the VPC origin, and stamp the choice so the cache policy keys on it.
+  cf.selectRequestOriginById(deployment);
+  event.request.headers[DEPLOYMENT_HEADER] = { value: deployment };
+
+  return event.request;
+}

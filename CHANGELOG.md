@@ -8,5 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Scaffolded the `cloudfront-edge-router` component interface: rollout
-  parameter, sync Lambda, key-value store, and routing function.
+- The `cloudfront-edge-router`: a Parameter Store entry as the source of truth,
+  a sync Lambda that projects it into CloudFront KeyValueStore, a viewer-request
+  CloudFront Function that selects the deployment's VPC origin with
+  `selectRequestOriginById` and stamps the deployment header, and a
+  viewer-response function that sets the pin cookie.
