@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-13
+
 ### Added
 
 - The `cloudfront-edge-router`: a Parameter Store entry as the source of truth,
@@ -20,3 +22,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - The rollout parameter's value is ignored after creation, so a promotion made
   by updating the parameter survives the next `terraform apply`.
+
+[Unreleased]: https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/releases/tag/v0.1.0
