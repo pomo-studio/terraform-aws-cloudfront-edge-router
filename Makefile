@@ -1,8 +1,11 @@
-.PHONY: test fmt validate
+.PHONY: test test-router fmt validate
 
-test:
+test: test-router
 	terraform init -backend=false
 	terraform test
+
+test-router:
+	node --test tests/*.test.mjs
 
 fmt:
 	terraform fmt -recursive

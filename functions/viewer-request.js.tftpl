@@ -4,25 +4,25 @@ const DEPLOYMENTS = ${deployments_json};
 const DEPLOYMENT_HEADER = ${deployment_header_json};
 const kvsHandle = cf.kvs();
 
-function readState() {
+async function readState() {
   const state = { active: DEPLOYMENTS[0], weight: 0, pinCookie: null };
 
   try {
-    const active = kvsHandle.get('active');
+    const active = await kvsHandle.get('active');
     if (active) {
       state.active = active;
     }
   } catch (error) {}
 
   try {
-    const weight = parseInt(kvsHandle.get('weight'), 10);
+    const weight = parseInt(await kvsHandle.get('weight'), 10);
     if (Number.isFinite(weight)) {
       state.weight = weight;
     }
   } catch (error) {}
 
   try {
-    const pin = kvsHandle.get('pin_cookie');
+    const pin = await kvsHandle.get('pin_cookie');
     if (pin && pin !== 'null') {
       state.pinCookie = pin;
     }
@@ -51,8 +51,8 @@ function pickDeployment(request, state) {
   return DEPLOYMENTS.indexOf(state.active) !== -1 ? state.active : DEPLOYMENTS[0];
 }
 
-function handler(event) {
-  const state = readState();
+async function handler(event) {
+  const state = await readState();
   const deployment = pickDeployment(event.request, state);
 
   // Switch the VPC origin, and stamp the choice so the cache policy keys on it.

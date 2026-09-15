@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Await CloudFront KeyValueStore reads before selecting an origin, so active
+  deployment, canary weight, and pinning settings take effect. Rejected reads
+  now use the existing fallback instead of causing unhandled rejections.
+- Exercise request routing with asynchronous KeyValueStore mocks in local and
+  CI tests, including promotions, canary boundaries, pins, and read failures.
+
 ## [0.1.0] - 2026-09-13
 
 ### Added

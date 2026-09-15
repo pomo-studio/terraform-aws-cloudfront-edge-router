@@ -9,6 +9,8 @@ on:
       - '**.tftest.hcl'
       - '**.md'
       - 'tests/**'
+      - 'functions/**'
+      - 'Makefile'
       - '.tflint.hcl'
       - '.terraform-docs.yml'
       - '.github/workflows/terraform.yml'
@@ -20,6 +22,8 @@ on:
       - '**.tftest.hcl'
       - '**.md'
       - 'tests/**'
+      - 'functions/**'
+      - 'Makefile'
       - '.tflint.hcl'
       - '.terraform-docs.yml'
       - '.github/workflows/terraform.yml'
@@ -33,6 +37,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  routing:
+    name: Routing behavior
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test viewer-request routing
+        run: make test-router
   validate:
     name: Validate (${{ matrix.directory }})
     runs-on: ubuntu-latest
