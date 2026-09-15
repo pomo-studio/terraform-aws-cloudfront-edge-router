@@ -3,7 +3,7 @@
 # mock_provider keeps these running with no AWS credentials, so they gate every
 # pull request. They pin the contract: the rollout parameter, the functions and
 # their store association, and the input validation. The live acceptance
-# workflow proves the same configuration on AWS.
+# runner exercises the full configuration on AWS when explicitly invoked.
 
 mock_provider "aws" {
   mock_resource "aws_iam_role" {
@@ -109,4 +109,15 @@ run "rejects_a_weight_over_100" {
   }
 
   expect_failures = [var.weight]
+}
+
+run "grants_the_sync_data_plane_write_action" {
+  command = plan
+  assert {
+    condition = contains(
+      jsondecode(aws_iam_role_policy.sync.policy).Statement[1].Action,
+      "cloudfront-keyvaluestore:UpdateKeys"
+    )
+    error_message = "The sync Lambda must be allowed to call the KVS UpdateKeys API."
+  }
 }

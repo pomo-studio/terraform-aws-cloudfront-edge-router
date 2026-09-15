@@ -22,10 +22,10 @@ def handler(event, context):
         if value is not None
     ]
 
-    etag = kvs.describe_key_value_store(KeyValueStoreArn=KVS_ARN)["ETag"]
-    kvs.update_key_value_store(
-        KeyValueStoreArn=KVS_ARN,
-        ETag=etag,
+    etag = kvs.describe_key_value_store(KvsARN=KVS_ARN)["ETag"]
+    kvs.update_keys(
+        KvsARN=KVS_ARN,
+        IfMatch=etag,
         Puts=puts,
     )
 

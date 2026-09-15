@@ -49,6 +49,21 @@ jobs:
           node-version: '22'
       - name: Test viewer-request routing
         run: make test-router
+  sync:
+    name: Sync API contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test SDK
+        run: python -m pip install -r tests/requirements.txt
+      - name: Test sync API contract
+        run: make test-sync
+
   validate:
     name: Validate (${{ matrix.directory }})
     runs-on: ubuntu-latest

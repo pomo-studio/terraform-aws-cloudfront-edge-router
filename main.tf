@@ -105,7 +105,7 @@ resource "aws_iam_role_policy" "sync" {
         Effect = "Allow"
         Action = [
           "cloudfront-keyvaluestore:DescribeKeyValueStore",
-          "cloudfront-keyvaluestore:UpdateKeyValueStore",
+          "cloudfront-keyvaluestore:UpdateKeys",
         ]
         Resource = [aws_cloudfront_key_value_store.this.arn]
       },

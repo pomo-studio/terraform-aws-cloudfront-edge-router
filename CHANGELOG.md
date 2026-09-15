@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Use the KeyValueStore data API's actual method and parameter names in the sync
+  Lambda, and grant its required UpdateKeys IAM permission.
+- Add an offline SDK contract test and an opt-in AWS integration runner covering
+  private origins, rollout propagation, caching, pinning, failures, and cleanup.
+
 - Await CloudFront KeyValueStore reads before selecting an origin, so active
   deployment, canary weight, and pinning settings take effect. Rejected reads
   now use the existing fallback instead of causing unhandled rejections.
@@ -27,6 +32,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changes; the schedule remains as a reconciler.
 
 ### Fixed
+
+- Use the KeyValueStore data API's actual method and parameter names in the sync
+  Lambda, and grant its required UpdateKeys IAM permission.
+- Add an offline SDK contract test and an opt-in AWS integration runner covering
+  private origins, rollout propagation, caching, pinning, failures, and cleanup.
 
 - The rollout parameter's value is ignored after creation, so a promotion made
   by updating the parameter survives the next `terraform apply`.

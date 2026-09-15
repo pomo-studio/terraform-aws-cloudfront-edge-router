@@ -3,3 +3,7 @@
 *.tfstate.backup
 .terraform.lock.hcl
 build/
+
+__pycache__/
+*.pyc
+tests/live/results/
