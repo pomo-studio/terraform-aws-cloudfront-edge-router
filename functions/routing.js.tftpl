@@ -1,0 +1,64 @@
+import cf from 'cloudfront';
+
+const DEPLOYMENTS = ${deployments_json};
+const kvsHandle = cf.kvs();
+
+async function readState() {
+  const state = { active: DEPLOYMENTS[0], weight: 0, pinCookie: null };
+
+  try {
+    const active = await kvsHandle.get('active');
+    if (active) {
+      state.active = active;
+    }
+  } catch (error) {}
+
+  try {
+    const rawWeight = await kvsHandle.get('weight');
+    const weight = Number(rawWeight);
+    if (Number.isFinite(weight)) {
+      state.weight = weight;
+    }
+  } catch (error) {}
+
+  try {
+    const pin = await kvsHandle.get('pin_cookie');
+    if (pin && pin !== 'null') {
+      state.pinCookie = pin;
+    }
+  } catch (error) {}
+
+  return state;
+}
+
+function pickDeployment(request, state, requestId) {
+  const cookies = request.cookies || {};
+
+  if (state.pinCookie && cookies[state.pinCookie]) {
+    const pinned = cookies[state.pinCookie].value;
+    if (DEPLOYMENTS.indexOf(pinned) !== -1) {
+      return pinned;
+    }
+  }
+
+  if (state.weight > 0 && DEPLOYMENTS.length > 1) {
+    const others = DEPLOYMENTS.filter((name) => name !== state.active);
+    if (others.length && requestSample(requestId) * 100 < state.weight) {
+      return others[0];
+    }
+  }
+
+  return DEPLOYMENTS.indexOf(state.active) !== -1 ? state.active : DEPLOYMENTS[0];
+}
+
+function requestSample(requestId) {
+  // CloudFront supplies the same ID to the request and response events.
+  // FNV-1a maps that random ID to a stable per-request sample.
+  let hash = 2166136261;
+  const id = requestId || '';
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return (hash >>> 0) / 4294967296;
+}

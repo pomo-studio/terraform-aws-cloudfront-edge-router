@@ -5,6 +5,9 @@ locals {
   parameter_path    = var.parameter_path != null ? var.parameter_path : "/${var.name}/rollout"
   kvs_name          = "${var.name}-edge-router"
   sync_name         = "${var.name}-edge-router-sync"
+  routing_code = templatefile("${path.module}/functions/routing.js.tftpl", {
+    deployments_json = jsonencode(local.deployment_list)
+  })
 }
 
 resource "aws_ssm_parameter" "rollout" {
@@ -47,7 +50,7 @@ resource "aws_cloudfront_function" "viewer_request" {
   publish = true
 
   code = templatefile("${path.module}/functions/viewer-request.js.tftpl", {
-    deployments_json       = jsonencode(local.deployment_list)
+    routing_code           = local.routing_code
     deployment_header_json = jsonencode(local.deployment_header)
   })
 
@@ -61,9 +64,9 @@ resource "aws_cloudfront_function" "viewer_response" {
   publish = true
 
   code = templatefile("${path.module}/functions/viewer-response.js.tftpl", {
-    deployment_header_json = jsonencode(local.deployment_header)
-    pin_cookie_json        = jsonencode(local.pin_cookie)
+    routing_code = local.routing_code
   })
+  key_value_store_associations = [aws_cloudfront_key_value_store.this.arn]
 }
 
 data "archive_file" "sync" {
@@ -195,4 +198,13 @@ resource "aws_lambda_permission" "on_change" {
   function_name = aws_lambda_function.sync.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.on_change.arn
+}
+
+# Seed KVS before callers can attach the functions to a distribution.
+# Later applies still read the operational SSM value, never the initial seed.
+resource "aws_lambda_invocation" "initialize" {
+  function_name   = aws_lambda_function.sync.function_name
+  input           = jsonencode({ reason = "initialize" })
+  lifecycle_scope = "CREATE_ONLY"
+  depends_on      = [aws_iam_role_policy.sync]
 }

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
+const shared = readFileSync(new URL('../functions/routing.js.tftpl', import.meta.url), 'utf8');
 const template = readFileSync(new URL('../functions/viewer-request.js.tftpl', import.meta.url), 'utf8');
 
 function router({ state = {}, deployments = ['blue', 'green'], random = 0.5, header = 'x-postmodern-deployment' } = {}) {
@@ -26,16 +27,17 @@ function router({ state = {}, deployments = ['blue', 'green'], random = 0.5, hea
       selectRequestOriginById: (id) => selected.push(id),
     },
   });
-  const code = template
+  const code = template.replace('${routing_code}', shared)
     .replace("import cf from 'cloudfront';", '')
     .replace('${deployments_json}', JSON.stringify(deployments))
     .replace('${deployment_header_json}', JSON.stringify(header));
   vm.runInContext(code, context);
+  context.requestSample = () => random;
   return {
     reads,
     async route(cookies = {}) {
       const request = { uri: '/account', headers: { accept: { value: 'text/html' } }, cookies };
-      const returned = await context.handler({ request });
+      const returned = await context.handler({ request, context: { requestId: 'unit-test' } });
       assert.equal(returned, request, 'the original request is returned');
       assert.equal(returned.uri, '/account');
       assert.equal(returned.headers.accept.value, 'text/html');

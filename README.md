@@ -74,6 +74,11 @@ state. Parameter changes and edge propagation are asynchronous; confirm actual
 traffic before completing a promotion. There is no health-based automatic
 failover.
 
+The module initializes KVS before returning its function associations. Both edge
+functions use the same request ID to reproduce the routing sample. They read
+rollout state independently, so a request spanning a promotion can receive a pin
+reflecting the newer state. Promotions are not transactional across a response.
+
 The sync Lambda includes its required AWS CRT signing layer. No local Python
 build is required to deploy the module. The [acceptance runner](tests/live/)
 checks real requests, state propagation, rollback, cache separation, and cleanup.
@@ -100,8 +105,8 @@ checks real requests, state propagation, rollback, cache separation, and cleanup
 
 | Name | Version |
 |------|---------|
-| <a name="provider_archive"></a> [archive](#provider\_archive) | 2.8.1 |
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.64.0 |
+| <a name="provider_archive"></a> [archive](#provider\_archive) | >= 2.4 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.0, < 7.0 |
 
 ## Modules
 
@@ -121,6 +126,7 @@ No modules.
 | [aws_iam_role.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_lambda_function.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function) | resource |
+| [aws_lambda_invocation.initialize](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_invocation) | resource |
 | [aws_lambda_layer_version.signing](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_layer_version) | resource |
 | [aws_lambda_permission.on_change](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_lambda_permission.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |

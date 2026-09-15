@@ -53,7 +53,9 @@ def main():
             for line in proc.stdout:
                 log.write(line)
                 log.flush()
-                print(line, end="", flush=True)
+                if any(word in line for word in ("Creating...", "Modifying...", "Destroying...",
+                        "complete", "Still ", "Error:", "Success!", "Plan:")):
+                    print(line, end="", flush=True)
             if proc.wait():
                 raise RuntimeError(f"Terraform {label} failed; see {log.name}")
     def request(path="/probe", pin=None):
@@ -156,6 +158,12 @@ def main():
         with ThreadPoolExecutor(max_workers=8) as executor:
             samples = list(executor.map(lambda _: request("/canary"), range(200)))
         assert all(r["status"] == 200 and r["body"] in ("blue", "green") for r in samples)
+        for response in samples:
+            assigned = SimpleCookie()
+            for value in response["set_cookie"]:
+                assigned.load(value)
+            assert out["cookie"] in assigned, response
+            assert assigned[out["cookie"]].value == response["body"], response
         green = sum(r["body"] == "green" for r in samples)
         assert 25 <= green <= 80, f"25% canary outside broad statistical bounds: {green}/200"
         record("25 percent canary", green=green, total=len(samples))
@@ -215,6 +223,7 @@ def main():
     except BaseException as error:
         evidence["status"] = "failed"
         evidence["error"] = repr(error)
+        save()
         if out:
             try:
                 evidence["sync_logs"] = aws("logs", "filter-log-events",

@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Use CloudFront-compatible await syntax and share deterministic request-ID
+  routing between request and response functions so new viewers receive pins.
+- Initialize KVS before returning function associations to a distribution.
+
 - Package the AWS CRT signing dependency required by the Python sync Lambda.
 - Reject invalid rollout updates and retry conflicting KVS writes with fresh state.
 - Clear pinning when rollout state specifies a null cookie, allowing emergency
@@ -38,6 +42,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changes; the schedule remains as a reconciler.
 
 ### Fixed
+
+- Use CloudFront-compatible await syntax and share deterministic request-ID
+  routing between request and response functions so new viewers receive pins.
+- Initialize KVS before returning function associations to a distribution.
 
 - Package the AWS CRT signing dependency required by the Python sync Lambda.
 - Reject invalid rollout updates and retry conflicting KVS writes with fresh state.
