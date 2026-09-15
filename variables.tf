@@ -52,12 +52,22 @@ variable "function_runtime" {
   description = "CloudFront Functions runtime. Origin selection needs cloudfront-js-2.0."
   type        = string
   default     = "cloudfront-js-2.0"
+
+  validation {
+    condition     = var.function_runtime == "cloudfront-js-2.0"
+    error_message = "Origin selection and KeyValueStore require cloudfront-js-2.0."
+  }
 }
 
 variable "lambda_runtime" {
   description = "Runtime for the sync Lambda"
   type        = string
   default     = "python3.12"
+
+  validation {
+    condition     = contains(["python3.11", "python3.12", "python3.13", "python3.14"], var.lambda_runtime)
+    error_message = "The bundled signing layer requires a supported Python runtime from python3.11 through python3.14."
+  }
 }
 
 variable "tags" {

@@ -133,3 +133,18 @@ run "bundles_the_sigv4a_signing_dependency" {
     error_message = "The deployed Lambda needs the packaged CRT signing layer."
   }
 }
+run "rejects_incompatible_python_runtime" {
+  command = plan
+  variables {
+    lambda_runtime = "python3.10"
+  }
+  expect_failures = [var.lambda_runtime]
+}
+
+run "rejects_legacy_cloudfront_runtime" {
+  command = plan
+  variables {
+    function_runtime = "cloudfront-js-1.0"
+  }
+  expect_failures = [var.function_runtime]
+}
