@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Require AWS provider 5.43 or later and test that minimum in CI.
+
 - Retry initial IAM propagation failures while seeding the rollout store.
 
 - Use CloudFront-compatible await syntax and share deterministic request-ID
@@ -44,6 +46,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changes; the schedule remains as a reconciler.
 
 ### Fixed
+
+- Require AWS provider 5.43 or later and test that minimum in CI.
 
 - Retry initial IAM propagation failures while seeding the rollout store.
 

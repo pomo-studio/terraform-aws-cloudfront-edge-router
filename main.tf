@@ -126,7 +126,7 @@ resource "aws_lambda_layer_version" "signing" {
   filename                 = "${path.module}/functions/signing/awscrt.zip"
   source_code_hash         = filebase64sha256("${path.module}/functions/signing/awscrt.zip")
   compatible_architectures = ["x86_64"]
-  compatible_runtimes      = ["python3.12", "python3.13", "python3.14"]
+  compatible_runtimes      = [var.lambda_runtime]
   description              = "AWS CRT 0.36.3 for KeyValueStore SigV4A signing"
 }
 

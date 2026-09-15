@@ -72,7 +72,9 @@ The sync rejects unknown deployments, invalid weights, and invalid cookie names
 without changing KVS. It retries conflicting writes using freshly read rollout
 state. Parameter changes and edge propagation are asynchronous; confirm actual
 traffic before completing a promotion. There is no health-based automatic
-failover.
+failover. If rollout keys cannot be read, routing falls back to the first
+deployment in alphabetical order with zero canary weight and no pinning.
+Keep that fallback origin available.
 
 The module initializes KVS before returning its function associations. Both edge
 functions use the same request ID to reproduce the routing sample. They read
@@ -99,14 +101,14 @@ checks real requests, state propagation, rollback, cache separation, and cleanup
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0 |
 | <a name="requirement_archive"></a> [archive](#requirement\_archive) | >= 2.4 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.0, < 7.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.43, < 7.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
 | <a name="provider_archive"></a> [archive](#provider\_archive) | >= 2.4 |
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.0, < 7.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.43, < 7.0 |
 
 ## Modules
 
