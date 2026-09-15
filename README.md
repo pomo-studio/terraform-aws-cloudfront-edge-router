@@ -214,3 +214,6 @@ Part of the [pomo-studio](https://github.com/pomo-studio) Terraform modules. Reg
 See the [contribution guide](https://github.com/pomo-studio/.github/blob/main/CONTRIBUTING.md) and [security policy](https://github.com/pomo-studio/.github/blob/main/SECURITY.md).
 
 MIT licensed. See [LICENSE](LICENSE).
+
+Part of [postmodern.tf](https://pomo.dev), the open-source AWS infrastructure
+collection created by [André Pitanga](https://pomo.studio).
