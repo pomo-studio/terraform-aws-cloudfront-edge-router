@@ -17,6 +17,10 @@ and CloudFront resources. Run from this repository:
 
     python3 tests/live/run.py       --profile YOUR_SANDBOX_PROFILE       --expected-account YOUR_SANDBOX_ACCOUNT_ID
 
+Temporary probe Lambdas in Oregon and Ireland exercise additional CloudFront
+edge locations. They can make requests only to the fixture distribution and
+are removed with the rest of the test.
+
 The runner checks the account, rejects populated fixture state and an initial
 plan that changes existing resources, applies the saved plan, exercises real
 HTTPS requests, and destroys resources in a finally block. Do not run two
@@ -41,7 +45,8 @@ Do not delete the state before cleanup completes.
 - Parameter Store changes reaching KVS and actual edge traffic.
 - Pin creation, valid and invalid pins, and pins surviving promotion and rollback.
 - Blue and green serving distinct bodies at the same cached URL, with cache hits.
-- A 25% canary across 200 unpinned requests, with broad statistical bounds.
+- A 25% canary across repeated 210-request batches from three locations.
+- Sustained rollout convergence across local, Oregon, and Ireland probes.
 - 100% canary, promotion, and rollback.
 - A green origin returning 503 while blue continues serving; recovery afterward.
 - Scheduled reconciliation with the parameter-change event rule disabled.

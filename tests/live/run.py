@@ -69,6 +69,37 @@ def main():
                     "cache": response.headers.get("X-Cache", ""),
                     "set_cookie": response.headers.get_all("Set-Cookie", []),
                     "pop": response.headers.get("X-Amz-Cf-Pop")}
+    def samples(path="/probe", count=20, pin=None):
+        def remote(probe):
+            payload_file = report_dir / ("probe-" + uuid.uuid4().hex + ".json")
+            metadata = aws("lambda", "invoke", "--region", probe["region"],
+                "--function-name", probe["name"], "--cli-binary-format", "raw-in-base64-out",
+                "--payload", json.dumps({"path": path, "count": count, "pin": pin}),
+                str(payload_file))
+            payload = json.loads(payload_file.read_text())
+            assert "FunctionError" not in metadata, payload
+            return payload["samples"]
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = [pool.submit(remote, probe) for probe in out["probes"]]
+            local = [request(path, pin) for _ in range(count)]
+            return local + [r for future in futures for r in future.result()]
+
+    def wait_deployment(label, expected, pin=None):
+        started = time.monotonic()
+        consecutive = 0
+        observations = []
+        while time.monotonic() - started < 300:
+            batch = samples("/settle-" + label.replace(" ", "-"), pin=pin)
+            good = all(r["status"] == 200 and r["body"] == expected for r in batch)
+            observations.append({"seconds": round(time.monotonic() - started, 2),
+                "matching": sum(r["status"] == 200 and r["body"] == expected for r in batch),
+                "total": len(batch), "pops": sorted({r["pop"] for r in batch})})
+            consecutive = consecutive + 1 if good else 0
+            if consecutive >= 2 and time.monotonic() - started >= 45:
+                record(label, observations=observations)
+                return
+            time.sleep(10)
+        raise AssertionError(f"{label} did not converge across regions: {observations}")
     def wait_for(label, predicate, timeout=300):
         started = time.monotonic()
         last = None
@@ -139,7 +170,7 @@ def main():
         assert cookies[out["cookie"]].value == "green", first
         record("new viewer receives green pin", response=first)
         rollout("blue", 0)
-        wait_for("promotion changes unpinned traffic", lambda: request()["body"] == "blue")
+        wait_deployment("promotion changes unpinned traffic", "blue")
         check_response(request(pin="green"), "green")
         check_response(request(pin="invalid"), "blue")
         record("existing pins survive promotion; invalid pins ignored", passed=True)
@@ -153,24 +184,40 @@ def main():
         assert any("Hit" in r["cache"] for r in observations), observations
         record("deployment cache isolation", responses=observations)
         rollout("blue", 25)
-        # KVS-to-edge propagation is asynchronous; allow it before sampling.
-        time.sleep(20)
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            samples = list(executor.map(lambda _: request("/canary"), range(200)))
-        assert all(r["status"] == 200 and r["body"] in ("blue", "green") for r in samples)
-        for response in samples:
-            assigned = SimpleCookie()
-            for value in response["set_cookie"]:
-                assigned.load(value)
-            assert out["cookie"] in assigned, response
-            assert assigned[out["cookie"]].value == response["body"], response
-        green = sum(r["body"] == "green" for r in samples)
-        assert 25 <= green <= 80, f"25% canary outside broad statistical bounds: {green}/200"
-        record("25 percent canary", green=green, total=len(samples))
+        # Wait for two statistically consistent batches after edge propagation.
+        # A successful control-plane read alone does not prove edge convergence.
+        started = time.monotonic()
+        consecutive = 0
+        batches = []
+        while time.monotonic() - started < 300:
+            canary_samples = samples("/canary", count=70)
+            assert all(r["status"] == 200 and r["body"] in ("blue", "green") for r in canary_samples)
+            matching_pins = True
+            for response in canary_samples:
+                assigned = SimpleCookie()
+                for value in response["set_cookie"]:
+                    assigned.load(value)
+                matching_pins &= (out["cookie"] in assigned and
+                                  assigned[out["cookie"]].value == response["body"])
+            green = sum(r["body"] == "green" for r in canary_samples)
+            settled = 34 <= green <= 71 and matching_pins
+            batches.append({"green": green, "total": len(canary_samples), "matching_pins": matching_pins,
+                            "seconds": round(time.monotonic() - started, 2)})
+            consecutive = consecutive + 1 if settled else 0
+            if consecutive == 2:
+                break
+            time.sleep(15)
+        assert consecutive == 2, f"25% canary did not converge: {batches}"
+        record("25 percent canary converges across repeated batches", batches=batches)
         rollout("blue", 100)
-        wait_for("100 percent canary", lambda: request()["body"] == "green")
+        wait_deployment("100 percent canary", "green")
+        time.sleep(45)
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            full_canary = list(executor.map(lambda _: request("/full-canary"), range(100)))
+        assert all(r["status"] == 200 and r["body"] == "green" for r in full_canary), full_canary
+        record("100 percent canary remains stable", requests=100)
         rollout("blue", 0)
-        wait_for("rollback returns unpinned traffic to blue", lambda: request()["body"] == "blue")
+        wait_deployment("rollback returns unpinned traffic to blue", "blue")
         check_response(request(pin="green"), "green")
         record("rollback retains existing green pins", passed=True)
         # Fresh paths bypass cached success; simulate application failure at green.
@@ -183,22 +230,20 @@ def main():
         check_response(request("/healthy-" + uuid.uuid4().hex), "blue")
         record("healthy deployment continues; no automatic origin failover", passed=True)
         rollout("blue", 0, pin_enabled=False)
-        wait_for("emergency rollback moves green-pinned viewers to blue",
-                 lambda: request("/evacuate-" + uuid.uuid4().hex, "green")["body"] == "blue")
+        wait_deployment("emergency rollback moves green-pinned viewers to blue", "blue", pin="green")
         healthy_actions = [{"Type": "fixed-response", "FixedResponseConfig":
                             {"StatusCode": "200", "ContentType": "text/plain", "MessageBody": "green"}}]
         aws("elbv2", "modify-listener", "--listener-arn", out["green_listener"],
             "--default-actions", json.dumps(healthy_actions))
         rollout("blue", 0)
-        wait_for("green origin recovers",
-                 lambda: request("/recovered-" + uuid.uuid4().hex, "green")["body"] == "green")
+        wait_deployment("green origin recovers", "green", pin="green")
         rollout("blue", 0)
         # Disable only this fixture's event rule to test scheduled reconciliation.
         change_rule = out["name"] + "-edge-router-sync-on-change"
         schedule_rule = out["name"] + "-edge-router-sync"
         aws("events", "disable-rule", "--name", change_rule)
         rollout("green", 0)
-        wait_for("schedule reconciles a missed change event", lambda: request()["body"] == "green")
+        wait_deployment("schedule reconciles a missed change event", "green")
         aws("events", "enable-rule", "--name", change_rule)
         # Remove rollout keys while both sync triggers are paused.
         aws("events", "disable-rule", "--name", change_rule)
@@ -208,13 +253,12 @@ def main():
         aws("cloudfront-keyvaluestore", "update-keys", "--kvs-arn", out["kvs_arn"],
             "--if-match", metadata["ETag"], "--deletes",
             json.dumps([{"Key": key} for key in ("active", "weight", "pin_cookie")]))
-        wait_for("missing rollout settings fall back to blue", lambda: request()["body"] == "blue")
+        wait_deployment("missing rollout settings fall back to blue", "blue", pin="green")
         check_response(request(pin="green"), "blue")
         aws("events", "enable-rule", "--name", schedule_rule)
         aws("events", "enable-rule", "--name", change_rule)
         rollout("blue", 0)
-        wait_for("routing recovers after restoring rollout settings",
-                 lambda: request(pin="green")["body"] == "green")
+        wait_deployment("routing recovers after restoring rollout settings", "green", pin="green")
         # Prove a subsequent Terraform apply does not reset operational rollout state.
         tf_logged("reapply", "apply", "-input=false", "-auto-approve", *vars_)
         state = json.loads(aws("ssm", "get-parameter", "--name", out["parameter_name"])["Parameter"]["Value"])

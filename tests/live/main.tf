@@ -127,5 +127,9 @@ output "test" {
     sync_function_name = module.router.sync_function_name
     cookie             = "${var.name}-deployment"
     green_listener     = aws_lb_listener.origin["green"].arn
+    probes = [
+      { region = "us-west-2", name = aws_lambda_function.probe_west.function_name },
+      { region = "eu-west-1", name = aws_lambda_function.probe_europe.function_name },
+    ]
   }
 }
