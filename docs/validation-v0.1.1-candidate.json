@@ -1,0 +1,900 @@
+{
+  "status": "passed",
+  "cleanup": "passed",
+  "started": "2026-09-15T03:44:25.309050+00:00",
+  "finished": "2026-09-15T04:24:44.114139+00:00",
+  "revision": "ed9c1771f9e88b14d35331d6a046c4485d55ed89",
+  "terraform_version": "1.14.6",
+  "provider_selections": {
+    "registry.terraform.io/hashicorp/archive": "2.8.1",
+    "registry.terraform.io/hashicorp/aws": "6.64.0"
+  },
+  "created_resources": 32,
+  "recorded_request_count_at_least": 4492,
+  "modules": [
+    {
+      "key": "frontdoor",
+      "source": "registry.terraform.io/pomo-studio/cloudfront-frontdoor/aws",
+      "version": "0.1.0"
+    },
+    {
+      "key": "origin",
+      "source": "registry.terraform.io/pomo-studio/cloudfront-vpc-origin/aws",
+      "version": "0.1.0"
+    },
+    {
+      "key": "router",
+      "source": "../..",
+      "version": null
+    }
+  ],
+  "checks": [
+    {
+      "check": "initial green deployment serves traffic",
+      "seconds": 0.62
+    },
+    {
+      "check": "explicit blue and green pinning",
+      "passed": true
+    },
+    {
+      "check": "new viewer receives green pin",
+      "response": {
+        "status": 200,
+        "body": "green",
+        "cache": "Hit from cloudfront",
+        "pop": "JFK50-P14"
+      }
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 0.81
+    },
+    {
+      "check": "rollout",
+      "active": "blue",
+      "weight": 0,
+      "seconds": 1.7
+    },
+    {
+      "check": "promotion changes unpinned traffic",
+      "observations": [
+        {
+          "seconds": 2.78,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 14.11,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 25.33,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 37.07,
+          "matching": 33,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 48.36,
+          "matching": 53,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 59.75,
+          "matching": 54,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 71.08,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 82.36,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        }
+      ]
+    },
+    {
+      "check": "existing pins survive promotion; invalid pins ignored",
+      "passed": true
+    },
+    {
+      "check": "deployment cache isolation",
+      "responses": [
+        {
+          "status": 200,
+          "body": "blue",
+          "cache": "Miss from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "green",
+          "cache": "Miss from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "blue",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "green",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "blue",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "green",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "blue",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "green",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "blue",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "green",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "blue",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        },
+        {
+          "status": 200,
+          "body": "green",
+          "cache": "Hit from cloudfront",
+          "pop": "JFK50-P14"
+        }
+      ]
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 0.89
+    },
+    {
+      "check": "rollout",
+      "active": "blue",
+      "weight": 25,
+      "seconds": 1.44
+    },
+    {
+      "check": "25 percent canary converges across repeated batches",
+      "batches": [
+        {
+          "green": 0,
+          "total": 210,
+          "matching_pins": true,
+          "seconds": 2.8
+        },
+        {
+          "green": 19,
+          "total": 210,
+          "matching_pins": true,
+          "seconds": 20.6
+        },
+        {
+          "green": 40,
+          "total": 210,
+          "matching_pins": true,
+          "seconds": 38.17
+        },
+        {
+          "green": 52,
+          "total": 210,
+          "matching_pins": true,
+          "seconds": 56.02
+        }
+      ]
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 0.52
+    },
+    {
+      "check": "rollout",
+      "active": "blue",
+      "weight": 100,
+      "seconds": 1.13
+    },
+    {
+      "check": "100 percent canary",
+      "observations": [
+        {
+          "seconds": 1.29,
+          "matching": 15,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 12.5,
+          "matching": 37,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 23.75,
+          "matching": 47,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 34.97,
+          "matching": 54,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 46.18,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 57.37,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        }
+      ]
+    },
+    {
+      "check": "100 percent canary remains stable",
+      "requests": 100
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 0.71
+    },
+    {
+      "check": "rollout",
+      "active": "blue",
+      "weight": 0,
+      "seconds": 1.29
+    },
+    {
+      "check": "rollback returns unpinned traffic to blue",
+      "observations": [
+        {
+          "seconds": 1.45,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 13.68,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 25.02,
+          "matching": 2,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 36.26,
+          "matching": 28,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 47.54,
+          "matching": 43,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 58.79,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 70.06,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        }
+      ]
+    },
+    {
+      "check": "rollback retains existing green pins",
+      "passed": true
+    },
+    {
+      "check": "green origin failure is visible to pinned viewers",
+      "seconds": 15.3
+    },
+    {
+      "check": "healthy deployment continues; no automatic origin failover",
+      "passed": true
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 0.78
+    },
+    {
+      "check": "rollout",
+      "active": "blue",
+      "weight": 0,
+      "seconds": 1.33
+    },
+    {
+      "check": "emergency rollback moves green-pinned viewers to blue",
+      "observations": [
+        {
+          "seconds": 1.37,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 12.88,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 24.15,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 35.44,
+          "matching": 22,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 46.64,
+          "matching": 37,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 57.88,
+          "matching": 45,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 69.16,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 80.39,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        }
+      ]
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 0.65
+    },
+    {
+      "check": "rollout",
+      "active": "blue",
+      "weight": 0,
+      "seconds": 1.2
+    },
+    {
+      "check": "green origin recovers",
+      "observations": [
+        {
+          "seconds": 1.32,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 12.55,
+          "matching": 19,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 23.8,
+          "matching": 27,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 35.17,
+          "matching": 37,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 46.35,
+          "matching": 56,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 57.76,
+          "matching": 59,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 68.98,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 80.23,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        }
+      ]
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 0.7
+    },
+    {
+      "check": "rollout",
+      "active": "blue",
+      "weight": 0,
+      "seconds": 1.25
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 50.04
+    },
+    {
+      "check": "rollout",
+      "active": "green",
+      "weight": 0,
+      "seconds": 50.55
+    },
+    {
+      "check": "schedule reconciles a missed change event",
+      "observations": [
+        {
+          "seconds": 1.38,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 12.58,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 23.84,
+          "matching": 6,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 35.12,
+          "matching": 22,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 46.35,
+          "matching": 47,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 57.6,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 68.84,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        }
+      ]
+    },
+    {
+      "check": "missing rollout settings fall back to blue",
+      "observations": [
+        {
+          "seconds": 1.31,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 12.59,
+          "matching": 9,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 23.83,
+          "matching": 22,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 35.04,
+          "matching": 30,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 46.29,
+          "matching": 53,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 57.55,
+          "matching": 58,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 68.77,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 79.98,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        }
+      ]
+    },
+    {
+      "check": "parameter propagated to KVS",
+      "seconds": 0.77
+    },
+    {
+      "check": "rollout",
+      "active": "blue",
+      "weight": 0,
+      "seconds": 1.32
+    },
+    {
+      "check": "routing recovers after restoring rollout settings",
+      "observations": [
+        {
+          "seconds": 1.4,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 12.68,
+          "matching": 0,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 23.92,
+          "matching": 30,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 35.16,
+          "matching": 43,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 46.36,
+          "matching": 56,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 57.63,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        },
+        {
+          "seconds": 68.99,
+          "matching": 60,
+          "total": 60,
+          "pops": [
+            "DUB56-P1",
+            "HIO52-P3",
+            "JFK50-P14"
+          ]
+        }
+      ]
+    },
+    {
+      "check": "terraform reapply preserves rollout state",
+      "passed": true
+    }
+  ]
+}

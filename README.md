@@ -3,7 +3,7 @@
 [![Terraform Validation](https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/actions/workflows/terraform.yml/badge.svg)](https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/actions/workflows/terraform.yml)
 [![Terraform Registry](https://img.shields.io/badge/terraform-registry-844FBA?logo=terraform)](https://registry.terraform.io/modules/pomo-studio/cloudfront-edge-router/aws)
 
-[Changelog](CHANGELOG.md)
+[Changelog](CHANGELOG.md) | [Live validation](docs/validation-v0.1.1.md)
 
 Pick the deployment at the edge. A CloudFront Function reads rollout state from a KeyValueStore on every request, selects the deployment's VPC origin, and stamps the choice so the cache stays per-deployment. A sync Lambda keeps the store current from Parameter Store.
 
