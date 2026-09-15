@@ -41,6 +41,22 @@ module "edge_router" {
 | Sync Lambda and its role | 1 |
 | EventBridge rules (on change, and a reconciling schedule) | 2 |
 
+## Sticky sessions, in plain language
+
+A visitor can stay on the same version of your application while you gradually
+move new visitors from blue to green. With pinning enabled, a browser cookie
+remembers the visitor's deployment, so changing the rollout percentage does not
+move visitors who already have a valid pin.
+
+During an emergency, you can override that preference and move visitors to the
+healthy deployment by disabling pinning. The change takes time to reach the edge
+locations; it is an operator-controlled switch, not automatic failure detection.
+See [Operating a rollout](#operating-a-rollout) for the settings.
+
+Stickiness applies to the blue or green deployment, not an individual server.
+Your application still manages login sessions and other session data. A browser
+that does not keep the cookie will not retain its deployment preference.
+
 ## Design decisions
 
 - **CloudFront Functions, not Lambda@Edge.** VPC origins do not support Lambda@Edge origin request or response triggers. Origin selection runs in a CloudFront Function on the JavaScript runtime 2.0, which can select a VPC origin by ID with `selectRequestOriginById`.
@@ -89,6 +105,26 @@ provider. CloudFront Functions require cloudfront-js-2.0.
 The sync Lambda includes its required AWS CRT signing layer. No local Python
 build is required to deploy the module. The [acceptance runner](tests/live/)
 checks real requests, state propagation, rollback, cache separation, and cleanup.
+
+## How we test it
+
+The test tools are part of this repository and can be reused when fixing bugs or
+preparing a release:
+
+- **Automated checks** run on pull requests that change the module, tests, or
+  documentation. They check routing choices, cookies, rollout updates, signing,
+  and Terraform configuration without deploying AWS infrastructure.
+- **Live AWS checks** create a temporary blue/green setup, send real requests,
+  deliberately break one origin, and verify switching and recovery. The runner
+  records the results and removes the test infrastructure. It runs explicitly
+  because it needs AWS credentials and creates billable resources.
+
+For a new bug, add a test that reproduces it, make the fix, and rerun the checks.
+The live runner can also test an exact published Registry version, so we can
+verify the package consumers actually download.
+
+See the [test instructions](tests/live/README.md) to run or extend the checks,
+and the [validation report](docs/validation-v0.1.1.md) for recorded results.
 
 ## Examples
 
