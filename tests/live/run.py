@@ -80,15 +80,15 @@ def main():
                 last = str(error)
             time.sleep(5)
         raise AssertionError(f"{label} timed out after {timeout}s; last={last}")
-    def rollout(active, weight):
-        state = {"active": active, "weight": weight, "pin_cookie": out["cookie"]}
+    def rollout(active, weight, pin_enabled=True):
+        state = {"active": active, "weight": weight, "pin_cookie": out["cookie"] if pin_enabled else None}
         started = time.monotonic()
         aws("ssm", "put-parameter", "--name", out["parameter_name"], "--type", "String",
             "--overwrite", "--value", json.dumps(state))
         def synced():
             rows = aws("cloudfront-keyvaluestore", "list-keys", "--kvs-arn", out["kvs_arn"]).get("Items", [])
             actual = {row["Key"]: row["Value"] for row in rows}
-            return all(actual.get(k) == str(v) for k, v in state.items())
+            return all(actual.get(k) == ("null" if v is None else str(v)) for k, v in state.items())
         wait_for("parameter propagated to KVS", synced)
         record("rollout", active=active, weight=weight, seconds=round(time.monotonic() - started, 2))
     def check_response(response, deployment):
@@ -107,7 +107,7 @@ def main():
         evidence["module_manifest"] = json.loads((HERE / ".terraform/modules/modules.json").read_text())
         evidence["terraform_version"] = json.loads(tf("version", "-json"))
         # Refuse reuse of a populated state: cleanup must only own this test's resources.
-        assert not tf("state", "list").strip(), "Fixture already has resources; clean up that run first"
+        assert not (HERE / "terraform.tfstate").exists() or not tf("state", "list").strip(), "Fixture already has resources; clean up that run first"
         vars_ = [f"-var=name={args.name}", f"-var=expected_account={args.expected_account}"]
         tf_logged("plan", "plan", "-input=false", "-out=" + str(report_dir / "plan"), *vars_)
         plan = json.loads(tf("show", "-json", str(report_dir / "plan")))
@@ -174,12 +174,16 @@ def main():
                  lambda: request("/failure-" + uuid.uuid4().hex, "green")["status"] == 503)
         check_response(request("/healthy-" + uuid.uuid4().hex), "blue")
         record("healthy deployment continues; no automatic origin failover", passed=True)
+        rollout("blue", 0, pin_enabled=False)
+        wait_for("emergency rollback moves green-pinned viewers to blue",
+                 lambda: request("/evacuate-" + uuid.uuid4().hex, "green")["body"] == "blue")
         healthy_actions = [{"Type": "fixed-response", "FixedResponseConfig":
                             {"StatusCode": "200", "ContentType": "text/plain", "MessageBody": "green"}}]
         aws("elbv2", "modify-listener", "--listener-arn", out["green_listener"],
             "--default-actions", json.dumps(healthy_actions))
         wait_for("green origin recovers",
                  lambda: request("/recovered-" + uuid.uuid4().hex, "green")["body"] == "green")
+        rollout("blue", 0)
         # Disable only this fixture's event rule to test scheduled reconciliation.
         change_rule = out["name"] + "-edge-router-sync-on-change"
         schedule_rule = out["name"] + "-edge-router-sync"

@@ -7,3 +7,5 @@ build/
 __pycache__/
 *.pyc
 tests/live/results/
+
+.terraform.tfstate.lock.info

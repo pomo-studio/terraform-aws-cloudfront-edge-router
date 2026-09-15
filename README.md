@@ -51,6 +51,33 @@ module "edge_router" {
 - **Near-instant, not atomic.** A parameter change triggers the sync through EventBridge, and a schedule reconciles in case an event is missed. The store then propagates to the edge on its own clock; the switch is quick but not transactional.
 - **Pin by cookie.** A viewer-response function sets a cookie the viewer-request function reads, so one viewer can stay on a deployment without opening the switch.
 
+## Operating a rollout
+
+Attach both function associations to the distribution and include the returned
+deployment header in its cache key. Each deployment name must match an origin ID.
+The [live integration fixture](tests/live/) shows this wiring with private origins.
+
+Update the JSON value at the returned Parameter Store path to change traffic.
+For example, active blue with weight 25 sends about 25% of unpinned requests to
+green. Weight 0 sends unpinned requests to the active deployment. Weight 100 sends
+them to the other deployment. Percentages describe new routing decisions;
+existing cookie pins take precedence.
+
+A normal rollback sets the healthy deployment active and weight to 0. For an
+emergency rollback that also moves pinned viewers, set pin_cookie to JSON null
+in the same update. The sync writes an explicit disabled-pin value to KVS.
+Use the original cookie name when restoring pinning after the incident.
+
+The sync rejects unknown deployments, invalid weights, and invalid cookie names
+without changing KVS. It retries conflicting writes using freshly read rollout
+state. Parameter changes and edge propagation are asynchronous; confirm actual
+traffic before completing a promotion. There is no health-based automatic
+failover.
+
+The sync Lambda includes its required AWS CRT signing layer. No local Python
+build is required to deploy the module. The [acceptance runner](tests/live/)
+checks real requests, state propagation, rollback, cache separation, and cleanup.
+
 ## Examples
 
 - [Basic](examples/basic/): two deployments, active blue, no weight.
@@ -73,8 +100,8 @@ module "edge_router" {
 
 | Name | Version |
 |------|---------|
-| <a name="provider_archive"></a> [archive](#provider\_archive) | >= 2.4 |
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.0, < 7.0 |
+| <a name="provider_archive"></a> [archive](#provider\_archive) | 2.8.1 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.64.0 |
 
 ## Modules
 
@@ -94,6 +121,7 @@ No modules.
 | [aws_iam_role.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_lambda_function.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function) | resource |
+| [aws_lambda_layer_version.signing](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_layer_version) | resource |
 | [aws_lambda_permission.on_change](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_lambda_permission.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_ssm_parameter.rollout](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
@@ -132,7 +160,7 @@ No modules.
 
 ## Support and license
 
-Part of the [pomo-studio](https://github.com/pomo-studio) Terraform modules, run in production by [postmodern.](https://pomo.studio). Regenerate the reference with `terraform-docs` v0.20.0 (`terraform-docs .`); CI fails on drift.
+Part of the [pomo-studio](https://github.com/pomo-studio) Terraform modules. Regenerate the reference with `terraform-docs` v0.20.0 (`terraform-docs .`); CI fails on drift.
 
 See the [contribution guide](https://github.com/pomo-studio/.github/blob/main/CONTRIBUTING.md) and [security policy](https://github.com/pomo-studio/.github/blob/main/SECURITY.md).
 

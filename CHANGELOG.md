@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Package the AWS CRT signing dependency required by the Python sync Lambda.
+- Reject invalid rollout updates and retry conflicting KVS writes with fresh state.
+- Clear pinning when rollout state specifies a null cookie, allowing emergency
+  rollback to move viewers pinned to an unhealthy deployment.
+- Preserve fractional canary weights in the viewer-request function.
+
 - Use the KeyValueStore data API's actual method and parameter names in the sync
   Lambda, and grant its required UpdateKeys IAM permission.
 - Add an offline SDK contract test and an opt-in AWS integration runner covering
@@ -32,6 +38,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changes; the schedule remains as a reconciler.
 
 ### Fixed
+
+- Package the AWS CRT signing dependency required by the Python sync Lambda.
+- Reject invalid rollout updates and retry conflicting KVS writes with fresh state.
+- Clear pinning when rollout state specifies a null cookie, allowing emergency
+  rollback to move viewers pinned to an unhealthy deployment.
+- Preserve fractional canary weights in the viewer-request function.
 
 - Use the KeyValueStore data API's actual method and parameter names in the sync
   Lambda, and grant its required UpdateKeys IAM permission.

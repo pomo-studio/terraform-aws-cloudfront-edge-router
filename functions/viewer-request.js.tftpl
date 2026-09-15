@@ -15,7 +15,7 @@ async function readState() {
   } catch (error) {}
 
   try {
-    const weight = parseInt(await kvsHandle.get('weight'), 10);
+    const weight = Number(await kvsHandle.get('weight'));
     if (Number.isFinite(weight)) {
       state.weight = weight;
     }

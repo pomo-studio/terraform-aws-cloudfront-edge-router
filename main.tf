@@ -118,7 +118,18 @@ resource "aws_iam_role_policy" "sync" {
   })
 }
 
+resource "aws_lambda_layer_version" "signing" {
+  layer_name               = "${local.sync_name}-signing"
+  filename                 = "${path.module}/functions/signing/awscrt.zip"
+  source_code_hash         = filebase64sha256("${path.module}/functions/signing/awscrt.zip")
+  compatible_architectures = ["x86_64"]
+  compatible_runtimes      = ["python3.12", "python3.13", "python3.14"]
+  description              = "AWS CRT 0.36.3 for KeyValueStore SigV4A signing"
+}
+
 resource "aws_lambda_function" "sync" {
+  layers           = [aws_lambda_layer_version.signing.arn]
+  architectures    = ["x86_64"]
   function_name    = local.sync_name
   role             = aws_iam_role.sync.arn
   handler          = "index.handler"
@@ -129,6 +140,7 @@ resource "aws_lambda_function" "sync" {
 
   environment {
     variables = {
+      DEPLOYMENTS    = jsonencode(local.deployment_list)
       PARAMETER_NAME = local.parameter_path
       KVS_ARN        = aws_cloudfront_key_value_store.this.arn
     }

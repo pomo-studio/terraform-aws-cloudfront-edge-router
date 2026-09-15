@@ -102,3 +102,7 @@ test('invalid rollout values retain the safe fallback', async () => {
 test('one deployment remains selectable with a 100% canary weight', async () => {
   assert.equal(await router({ deployments: ['only'], state: { active: 'only', weight: '100', pin_cookie: 'deployment' }, header: 'x-custom-deployment' }).route(), 'only');
 });
+test('fractional canary percentages are preserved', async () => {
+  assert.equal(await router({ state: { active: 'blue', weight: '25.5', pin_cookie: 'null' }, random: 0.254 }).route(), 'green');
+  assert.equal(await router({ state: { active: 'blue', weight: '25.5', pin_cookie: 'null' }, random: 0.255 }).route(), 'blue');
+});

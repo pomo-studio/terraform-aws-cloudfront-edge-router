@@ -6,6 +6,11 @@
 # runner exercises the full configuration on AWS when explicitly invoked.
 
 mock_provider "aws" {
+  mock_resource "aws_lambda_layer_version" {
+    defaults = {
+      arn = "arn:aws:lambda:us-east-1:123456789012:layer:signing:1"
+    }
+  }
   mock_resource "aws_iam_role" {
     defaults = {
       arn = "arn:aws:iam::123456789012:role/acceptance-edge-router-sync"
@@ -119,5 +124,12 @@ run "grants_the_sync_data_plane_write_action" {
       "cloudfront-keyvaluestore:UpdateKeys"
     )
     error_message = "The sync Lambda must be allowed to call the KVS UpdateKeys API."
+  }
+}
+run "bundles_the_sigv4a_signing_dependency" {
+  command = plan
+  assert {
+    condition     = aws_lambda_function.sync.layers == tolist([aws_lambda_layer_version.signing.arn])
+    error_message = "The deployed Lambda needs the packaged CRT signing layer."
   }
 }
