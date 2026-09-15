@@ -9,6 +9,26 @@ The router comes from the current checkout. The origin and frontdoor modules
 come from their published Registry version 0.1.0. A passing candidate run does
 not prove an older published router version works.
 
+## Reusing the tests for a bug fix
+
+Start with a small regression test that reproduces the bug. Routing and cookie
+checks live in tests/*.test.mjs, sync and signing checks in tests/test_*.py, and
+Terraform checks in tests/plan.tftest.hcl. After making the fix, run the local
+checks from the repository root:
+
+    python3 -m pip install -r tests/requirements.txt
+    make test
+
+These checks require Node.js, Python, Terraform, and Make; they do not deploy AWS
+resources. CI runs them automatically for changes to the module, tests, and docs,
+and tests both the minimum supported and latest AWS provider.
+
+If the bug depends on real AWS behavior, extend run.py with a scenario that
+reproduces it, then run the live fixture below. Keep the cleanup path intact and
+check both the test result and cleanup status before calling the run successful.
+For a release, also follow [Release evidence](#release-evidence) to exercise the
+published package.
+
 ## Run
 
 Requires Terraform >= 1.9, Python >= 3.10, AWS CLI v2, and credentials authorized
@@ -49,6 +69,7 @@ Do not delete the state before cleanup completes.
 - Sustained rollout convergence across local, Oregon, and Ireland probes.
 - 100% canary, promotion, and rollback.
 - A green origin returning 503 while blue continues serving; recovery afterward.
+- Emergency rollback with pinning disabled, moving green-pinned viewers to blue.
 - Scheduled reconciliation with the parameter-change event rule disabled.
 - Missing KVS settings, fallback behavior, and recovery.
 - A later Terraform apply preserving the operational rollout state.
