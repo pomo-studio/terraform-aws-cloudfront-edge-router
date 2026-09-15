@@ -3,7 +3,7 @@
 [![Terraform Validation](https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/actions/workflows/terraform.yml/badge.svg)](https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/actions/workflows/terraform.yml)
 [![Terraform Registry](https://img.shields.io/badge/terraform-registry-844FBA?logo=terraform)](https://registry.terraform.io/modules/pomo-studio/cloudfront-edge-router/aws)
 
-[Changelog](CHANGELOG.md)
+[Changelog](CHANGELOG.md) | [Live validation](docs/validation-v0.1.1.md)
 
 Pick the deployment at the edge. A CloudFront Function reads rollout state from a KeyValueStore on every request, selects the deployment's VPC origin, and stamps the choice so the cache stays per-deployment. A sync Lambda keeps the store current from Parameter Store.
 
@@ -45,11 +45,50 @@ module "edge_router" {
 
 - **CloudFront Functions, not Lambda@Edge.** VPC origins do not support Lambda@Edge origin request or response triggers. Origin selection runs in a CloudFront Function on the JavaScript runtime 2.0, which can select a VPC origin by ID with `selectRequestOriginById`.
 - **Parameter Store is the source of truth.** CloudFront Functions cannot reach the network, so they cannot read Parameter Store. A sync Lambda copies the rollout state into a KeyValueStore, and the function reads it per request.
-- **Why not write the KeyValueStore directly?** It is possible, but the rollout state is three keys, and a promotion changes more than one of them. The sync Lambda writes them in a single `UpdateKeyValueStore` call, so the function never reads a half-applied state; writing keys one at a time from a pipeline would. Parameter Store also gives the state a history, an IAM path, and a change event, none of which the store has on its own.
+- **Why not write the KeyValueStore directly?** It is possible, but the rollout state is three keys, and a promotion changes more than one of them. The sync Lambda writes all three keys in one `UpdateKeys` call, rather than publishing separate partial updates. Parameter Store also gives the state a history, an IAM path, and a change event, none of which the store has on its own.
 - **Rollout state is data, not infrastructure.** Active colour, weight, and pin cookie live in one Parameter Store entry, so promotion is a parameter update rather than a plan. Terraform seeds the value and then ignores it, so a later apply does not put the seed back.
 - **The cache key carries the deployment.** Selecting an origin does not change the cache key, so the function stamps the deployment header and the distribution keys its cache on it. The module returns the header name and the function associations for that wiring.
-- **Near-instant, not atomic.** A parameter change triggers the sync through EventBridge, and a schedule reconciles in case an event is missed. The store then propagates to the edge on its own clock; the switch is quick but not transactional.
+- **Propagation takes time.** A parameter change triggers the sync through EventBridge, and a schedule reconciles in case an event is missed. Edge locations receive the update asynchronously. Keep both deployments available and confirm actual traffic before retiring either one.
 - **Pin by cookie.** A viewer-response function sets a cookie the viewer-request function reads, so one viewer can stay on a deployment without opening the switch.
+
+## Operating a rollout
+
+Attach both function associations to the distribution and include the returned
+deployment header in its cache key. Each deployment name must match an origin ID.
+The [live integration fixture](tests/live/) shows this wiring with private origins.
+
+Update the JSON value at the returned Parameter Store path to change traffic.
+For example, active blue with weight 25 sends about 25% of unpinned requests to
+green. Weight 0 sends unpinned requests to the active deployment. Weight 100 sends
+them to the other deployment. Percentages describe new routing decisions;
+existing cookie pins take precedence.
+
+A normal rollback sets the healthy deployment active and weight to 0. For an
+emergency rollback that also moves pinned viewers, set pin_cookie to JSON null
+in the same update. The sync writes an explicit disabled-pin value to KVS.
+Use the original cookie name when restoring pinning after the incident.
+
+The sync rejects unknown deployments, invalid weights, and invalid cookie names
+without changing KVS. It retries conflicting writes using freshly read rollout
+state. Parameter changes and edge propagation are asynchronous; confirm actual
+traffic before completing a promotion. There is no health-based automatic
+failover. Unreadable keys use their individual defaults. If all rollout keys are
+unavailable, routing falls back to the first
+deployment in alphabetical order with zero canary weight and no pinning.
+Keep that fallback origin available.
+
+The module initializes KVS before returning its function associations. Both edge
+functions use the same request ID to reproduce the routing sample. They read
+rollout state independently, so a request spanning a promotion can receive a pin
+reflecting the newer state. Promotions are not transactional across a response.
+
+The default Python 3.12 runtime was exercised in AWS. The signing layer supports
+Python 3.11 through 3.14; selecting a newer runtime may require a newer AWS
+provider. CloudFront Functions require cloudfront-js-2.0.
+
+The sync Lambda includes its required AWS CRT signing layer. No local Python
+build is required to deploy the module. The [acceptance runner](tests/live/)
+checks real requests, state propagation, rollback, cache separation, and cleanup.
 
 ## Examples
 
@@ -67,14 +106,14 @@ module "edge_router" {
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0 |
 | <a name="requirement_archive"></a> [archive](#requirement\_archive) | >= 2.4 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.0, < 7.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.43, < 7.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
 | <a name="provider_archive"></a> [archive](#provider\_archive) | >= 2.4 |
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.0, < 7.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.43, < 7.0 |
 
 ## Modules
 
@@ -94,6 +133,8 @@ No modules.
 | [aws_iam_role.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_lambda_function.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function) | resource |
+| [aws_lambda_invocation.initialize](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_invocation) | resource |
+| [aws_lambda_layer_version.signing](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_layer_version) | resource |
 | [aws_lambda_permission.on_change](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_lambda_permission.sync](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_ssm_parameter.rollout](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
@@ -132,7 +173,7 @@ No modules.
 
 ## Support and license
 
-Part of the [pomo-studio](https://github.com/pomo-studio) Terraform modules, run in production by [postmodern.](https://pomo.studio). Regenerate the reference with `terraform-docs` v0.20.0 (`terraform-docs .`); CI fails on drift.
+Part of the [pomo-studio](https://github.com/pomo-studio) Terraform modules. Regenerate the reference with `terraform-docs` v0.20.0 (`terraform-docs .`); CI fails on drift.
 
 See the [contribution guide](https://github.com/pomo-studio/.github/blob/main/CONTRIBUTING.md) and [security policy](https://github.com/pomo-studio/.github/blob/main/SECURITY.md).
 

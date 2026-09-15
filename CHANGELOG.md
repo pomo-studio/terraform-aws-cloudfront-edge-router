@@ -6,7 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-15
+
 ### Fixed
+
+- Require AWS provider 5.43 or later and test that minimum in CI.
+- Reject runtimes incompatible with origin selection or the bundled signing layer.
+
+- Retry initial IAM propagation failures while seeding the rollout store.
+
+- Use CloudFront-compatible await syntax and share deterministic request-ID
+  routing between request and response functions so new viewers receive pins.
+- Initialize KVS before returning function associations to a distribution.
+
+- Package the AWS CRT signing dependency required by the Python sync Lambda.
+- Reject invalid rollout updates and retry conflicting KVS writes with fresh state.
+- Clear pinning when rollout state specifies a null cookie, allowing emergency
+  rollback to move viewers pinned to an unhealthy deployment.
+- Preserve fractional canary weights in the viewer-request function.
+
+- Use the KeyValueStore data API's actual method and parameter names in the sync
+  Lambda, and grant its required UpdateKeys IAM permission.
+- Add an offline SDK contract test and an opt-in AWS integration runner covering
+  private origins, rollout propagation, caching, pinning, failures, and cleanup.
 
 - Await CloudFront KeyValueStore reads before selecting an origin, so active
   deployment, canary weight, and pinning settings take effect. Rejected reads
@@ -31,5 +53,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The rollout parameter's value is ignored after creation, so a promotion made
   by updating the parameter survives the next `terraform apply`.
 
-[Unreleased]: https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/pomo-studio/terraform-aws-cloudfront-edge-router/releases/tag/v0.1.0

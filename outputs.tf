@@ -1,4 +1,5 @@
 output "function_associations" {
+  depends_on  = [aws_lambda_invocation.initialize]
   description = "Associations to pass to cloudfront-frontdoor's function_associations input"
   value = [
     {

@@ -5,6 +5,9 @@ locals {
   parameter_path    = var.parameter_path != null ? var.parameter_path : "/${var.name}/rollout"
   kvs_name          = "${var.name}-edge-router"
   sync_name         = "${var.name}-edge-router-sync"
+  routing_code = templatefile("${path.module}/functions/routing.js.tftpl", {
+    deployments_json = jsonencode(local.deployment_list)
+  })
 }
 
 resource "aws_ssm_parameter" "rollout" {
@@ -47,7 +50,7 @@ resource "aws_cloudfront_function" "viewer_request" {
   publish = true
 
   code = templatefile("${path.module}/functions/viewer-request.js.tftpl", {
-    deployments_json       = jsonencode(local.deployment_list)
+    routing_code           = local.routing_code
     deployment_header_json = jsonencode(local.deployment_header)
   })
 
@@ -61,9 +64,9 @@ resource "aws_cloudfront_function" "viewer_response" {
   publish = true
 
   code = templatefile("${path.module}/functions/viewer-response.js.tftpl", {
-    deployment_header_json = jsonencode(local.deployment_header)
-    pin_cookie_json        = jsonencode(local.pin_cookie)
+    routing_code = local.routing_code
   })
+  key_value_store_associations = [aws_cloudfront_key_value_store.this.arn]
 }
 
 data "archive_file" "sync" {
@@ -105,7 +108,7 @@ resource "aws_iam_role_policy" "sync" {
         Effect = "Allow"
         Action = [
           "cloudfront-keyvaluestore:DescribeKeyValueStore",
-          "cloudfront-keyvaluestore:UpdateKeyValueStore",
+          "cloudfront-keyvaluestore:UpdateKeys",
         ]
         Resource = [aws_cloudfront_key_value_store.this.arn]
       },
@@ -118,17 +121,29 @@ resource "aws_iam_role_policy" "sync" {
   })
 }
 
+resource "aws_lambda_layer_version" "signing" {
+  layer_name               = "${local.sync_name}-signing"
+  filename                 = "${path.module}/functions/signing/awscrt.zip"
+  source_code_hash         = filebase64sha256("${path.module}/functions/signing/awscrt.zip")
+  compatible_architectures = ["x86_64"]
+  compatible_runtimes      = [var.lambda_runtime]
+  description              = "AWS CRT 0.36.3 for KeyValueStore SigV4A signing"
+}
+
 resource "aws_lambda_function" "sync" {
+  layers           = [aws_lambda_layer_version.signing.arn]
+  architectures    = ["x86_64"]
   function_name    = local.sync_name
   role             = aws_iam_role.sync.arn
   handler          = "index.handler"
   runtime          = var.lambda_runtime
   filename         = data.archive_file.sync.output_path
   source_code_hash = data.archive_file.sync.output_base64sha256
-  timeout          = 30
+  timeout          = 120
 
   environment {
     variables = {
+      DEPLOYMENTS    = jsonencode(local.deployment_list)
       PARAMETER_NAME = local.parameter_path
       KVS_ARN        = aws_cloudfront_key_value_store.this.arn
     }
@@ -183,4 +198,13 @@ resource "aws_lambda_permission" "on_change" {
   function_name = aws_lambda_function.sync.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.on_change.arn
+}
+
+# Seed KVS before callers can attach the functions to a distribution.
+# Later applies still read the operational SSM value, never the initial seed.
+resource "aws_lambda_invocation" "initialize" {
+  function_name   = aws_lambda_function.sync.function_name
+  input           = jsonencode({ reason = "initialize" })
+  lifecycle_scope = "CREATE_ONLY"
+  depends_on      = [aws_iam_role_policy.sync]
 }

@@ -3,9 +3,14 @@
 # mock_provider keeps these running with no AWS credentials, so they gate every
 # pull request. They pin the contract: the rollout parameter, the functions and
 # their store association, and the input validation. The live acceptance
-# workflow proves the same configuration on AWS.
+# runner exercises the full configuration on AWS when explicitly invoked.
 
 mock_provider "aws" {
+  mock_resource "aws_lambda_layer_version" {
+    defaults = {
+      arn = "arn:aws:lambda:us-east-1:123456789012:layer:signing:1"
+    }
+  }
   mock_resource "aws_iam_role" {
     defaults = {
       arn = "arn:aws:iam::123456789012:role/acceptance-edge-router-sync"
@@ -109,4 +114,37 @@ run "rejects_a_weight_over_100" {
   }
 
   expect_failures = [var.weight]
+}
+
+run "grants_the_sync_data_plane_write_action" {
+  command = plan
+  assert {
+    condition = contains(
+      jsondecode(aws_iam_role_policy.sync.policy).Statement[1].Action,
+      "cloudfront-keyvaluestore:UpdateKeys"
+    )
+    error_message = "The sync Lambda must be allowed to call the KVS UpdateKeys API."
+  }
+}
+run "bundles_the_sigv4a_signing_dependency" {
+  command = plan
+  assert {
+    condition     = aws_lambda_function.sync.layers == tolist([aws_lambda_layer_version.signing.arn])
+    error_message = "The deployed Lambda needs the packaged CRT signing layer."
+  }
+}
+run "rejects_incompatible_python_runtime" {
+  command = plan
+  variables {
+    lambda_runtime = "python3.10"
+  }
+  expect_failures = [var.lambda_runtime]
+}
+
+run "rejects_legacy_cloudfront_runtime" {
+  command = plan
+  variables {
+    function_runtime = "cloudfront-js-1.0"
+  }
+  expect_failures = [var.function_runtime]
 }

@@ -1,20 +1,21 @@
-const DEPLOYMENT_HEADER = ${deployment_header_json};
-const PIN_COOKIE = ${pin_cookie_json};
+${routing_code}
 
-function handler(event) {
+async function handler(event) {
   const response = event.response;
-  const headers = event.request.headers || {};
-  const marked = headers[DEPLOYMENT_HEADER];
-
-  if (marked && marked.value) {
-    const current = (event.request.cookies || {})[PIN_COOKIE];
-    if (!current || current.value !== marked.value) {
-      response.cookies[PIN_COOKIE] = {
-        value: marked.value,
-        attributes: 'Path=/; Secure; SameSite=Lax; Max-Age=86400',
-      };
-    }
+  const state = await readState();
+  if (!state.pinCookie) {
+    return response;
   }
-
+  // Viewer-response receives the original viewer request. Reproduce the
+  // choice from its request ID instead of trusting a mutated request header.
+  const deployment = pickDeployment(event.request, state, event.context.requestId);
+  const current = (event.request.cookies || {})[state.pinCookie];
+  if (!current || current.value !== deployment) {
+    response.cookies = response.cookies || {};
+    response.cookies[state.pinCookie] = {
+      value: deployment,
+      attributes: 'Path=/; Secure; SameSite=Lax; Max-Age=86400',
+    };
+  }
   return response;
 }
