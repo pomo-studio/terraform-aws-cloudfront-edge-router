@@ -139,7 +139,7 @@ resource "aws_lambda_function" "sync" {
   runtime          = var.lambda_runtime
   filename         = data.archive_file.sync.output_path
   source_code_hash = data.archive_file.sync.output_base64sha256
-  timeout          = 30
+  timeout          = 120
 
   environment {
     variables = {

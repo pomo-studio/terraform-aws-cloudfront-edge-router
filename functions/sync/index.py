@@ -2,6 +2,7 @@ import json
 import math
 import os
 import re
+import time
 
 import boto3
 
@@ -30,13 +31,15 @@ def rollout_values(state):
 
 
 def handler(event, context):
-    # Re-read the source of truth on a write conflict so an older invocation
-    # cannot overwrite a newer promotion using its stale state.
-    for attempt in range(3):
-        etag = kvs.describe_key_value_store(KvsARN=KVS_ARN)["ETag"]
-        parameter = ssm.get_parameter(Name=PARAMETER_NAME)["Parameter"]["Value"]
-        values = rollout_values(json.loads(parameter))
+    initializing = event.get("reason") == "initialize"
+    attempts = 10 if initializing else 3
+    for attempt in range(attempts):
         try:
+            # Capture the version before reading SSM so a newer writer
+            # invalidates this update rather than being overwritten.
+            etag = kvs.describe_key_value_store(KvsARN=KVS_ARN)["ETag"]
+            parameter = ssm.get_parameter(Name=PARAMETER_NAME)["Parameter"]["Value"]
+            values = rollout_values(json.loads(parameter))
             kvs.update_keys(
                 KvsARN=KVS_ARN,
                 IfMatch=etag,
@@ -44,5 +47,11 @@ def handler(event, context):
             )
             return {"updated": values}
         except kvs.exceptions.ConflictException:
-            if attempt == 2:
+            if attempt == attempts - 1:
                 raise
+        except (kvs.exceptions.AccessDeniedException, kvs.exceptions.ResourceNotFoundException):
+            # The newly created role/store may not have propagated globally.
+            # Only initialization tolerates this, and only for a bounded time.
+            if not initializing or attempt == attempts - 1:
+                raise
+        time.sleep(min(2 ** attempt, 8))

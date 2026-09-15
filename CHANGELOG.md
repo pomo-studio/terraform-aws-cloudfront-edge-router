@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Retry initial IAM propagation failures while seeding the rollout store.
+
 - Use CloudFront-compatible await syntax and share deterministic request-ID
   routing between request and response functions so new viewers receive pins.
 - Initialize KVS before returning function associations to a distribution.
@@ -42,6 +44,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changes; the schedule remains as a reconciler.
 
 ### Fixed
+
+- Retry initial IAM propagation failures while seeding the rollout store.
 
 - Use CloudFront-compatible await syntax and share deterministic request-ID
   routing between request and response functions so new viewers receive pins.

@@ -25,6 +25,9 @@ class SyncTest(unittest.TestCase):
         with patch.dict(os.environ, PARAMETER_NAME=PATH, KVS_ARN=ARN,
                         DEPLOYMENTS=json.dumps(["blue", "green"])),              patch("boto3.client", side_effect=lambda name: self.clients[name]):
             spec.loader.exec_module(self.handler)
+        sleeper = patch.object(self.handler.time, "sleep")
+        sleeper.start()
+        self.addCleanup(sleeper.stop)
         self.ssm = Stubber(self.clients["ssm"])
         self.kvs = Stubber(self.clients["cloudfront-keyvaluestore"])
         self.ssm.activate()
@@ -77,6 +80,15 @@ class SyncTest(unittest.TestCase):
         self.ssm.assert_no_pending_responses()
         self.kvs.assert_no_pending_responses()
 
+    def test_initialization_waits_for_iam_propagation(self):
+        state = {"active": "green", "weight": 0, "pin_cookie": "deployment"}
+        self.kvs.add_client_error("describe_key_value_store", "AccessDeniedException",
+            http_status_code=403, expected_params={"KvsARN": ARN})
+        self.queue_read(state)
+        self.queue_write(state)
+        self.assertEqual(self.handler.handler({"reason": "initialize"}, None)["updated"]["active"], "green")
+        self.handler.time.sleep.assert_called_once_with(1)
+        self.kvs.assert_no_pending_responses()
     def test_conflict_rereads_the_latest_promotion(self):
         old = {"active": "blue", "weight": 25, "pin_cookie": "deployment"}
         new = {"active": "green", "weight": 0, "pin_cookie": "deployment"}

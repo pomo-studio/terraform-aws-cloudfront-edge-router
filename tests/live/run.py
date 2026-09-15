@@ -189,6 +189,7 @@ def main():
                             {"StatusCode": "200", "ContentType": "text/plain", "MessageBody": "green"}}]
         aws("elbv2", "modify-listener", "--listener-arn", out["green_listener"],
             "--default-actions", json.dumps(healthy_actions))
+        rollout("blue", 0)
         wait_for("green origin recovers",
                  lambda: request("/recovered-" + uuid.uuid4().hex, "green")["body"] == "green")
         rollout("blue", 0)
