@@ -16,17 +16,6 @@ on:
       - '.github/workflows/terraform.yml'
   pull_request:
     branches: [main]
-    paths:
-      - '**.tf'
-      - '**.tfvars'
-      - '**.tftest.hcl'
-      - '**.md'
-      - 'tests/**'
-      - 'functions/**'
-      - 'Makefile'
-      - '.tflint.hcl'
-      - '.terraform-docs.yml'
-      - '.github/workflows/terraform.yml'
   workflow_dispatch:
 
 permissions:
@@ -137,3 +126,15 @@ jobs:
           output-file: README.md
           output-method: inject
           fail-on-diff: true
+
+  checks-passed:
+    name: Checks passed
+    # One stable required status check for branch protection. Dependabot
+    # auto-merge waits on it, so it covers every job above without listing each.
+    if: always()
+    needs: [routing, sync, validate, test, lint, docs]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
